@@ -1,4 +1,0 @@
-Flask>=2.0
-reportlab>=3.6
-supabase>=0.2.9
-waitress>=2.0
