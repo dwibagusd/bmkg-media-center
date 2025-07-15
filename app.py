@@ -336,8 +336,26 @@ def logout():
     session.pop('user', None)
     return redirect(url_for('index'))
 
+@app.before_request
+def log_request():
+    app.logger.info(f"Incoming request: {request.method} {request.path}")
+
+@app.after_request
+def log_response(response):
+    app.logger.info(f"Response: {response.status}")
+    return response
+
+@app.route('/test')
+def test():
+    return {
+        "status": "OK",
+        "supabase_configured": bool(os.getenv('SUPABASE_URL')),
+        "env_keys": list(os.environ.keys())
+    }
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
     if not all([os.getenv('SUPABASE_URL'), os.getenv('SUPABASE_KEY')]):
     raise RuntimeError("Supabase credentials missing!")
+    
