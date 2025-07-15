@@ -25,31 +25,21 @@ logger = logging.getLogger(__name__)
 # Buat folder unggahan
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Konfigurasi Supabase dengan error handling
-try:
-    SUPABASE_URL = os.environ.get("SUPABASE_URL")
-    SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-    
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        raise RuntimeError("Supabase credentials not set in environment variables")
-    
-    # Inisialisasi client dengan konfigurasi minimal
-    supabase: Client = create_client(
-        supabase_url=SUPABASE_URL,
-        supabase_key=SUPABASE_KEY,
-        options={
-            'auto_refresh_token': True,
-            'persist_session': True
-        }
-    )
-    
-    # Test koneksi
-    data = supabase.table('interview_requests').select("*").limit(1).execute()
-    print("Supabase connected successfully")
-    
-except Exception as e:
-    print(f"Failed to initialize Supabase: {str(e)}")
-    raise
+from supabase import create_client
+import os
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+
+# Solusi 1: Gunakan versi lebih baru dengan opsi eksplisit
+supabase = create_client(
+    supabase_url=SUPABASE_URL,
+    supabase_key=SUPABASE_KEY,
+    options={
+        'auto_refresh_token': False,  # Nonaktifkan fitur problematik
+        'persist_session': False
+    }
+)
 
 def allowed_file(filename):
     return '.' in filename and \
