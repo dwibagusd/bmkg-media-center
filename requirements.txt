@@ -1,15 +1,5 @@
-{
-  "version": 2,
-  "builds": [
-    {
-      "src": "app.py",
-      "use": "@vercel/python"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "app.py"
-    }
-  ]
-}
+# requirements.txt
+Flask>=2.0
+reportlab>=3.6
+supabase-py>=1.0
+waitress>=2.0
