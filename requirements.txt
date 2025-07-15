@@ -1,6 +1,6 @@
 Flask==2.3.2
-supabase==2.3.1
+supabase==2.7.1  # Versi terbaru yang stabil
 python-dotenv==1.0.0
 werkzeug==2.3.7
 reportlab==4.0.4
-psycopg2-binary==2.9.9  # Update ke versi terbaru
+psycopg2-binary==2.9.9
