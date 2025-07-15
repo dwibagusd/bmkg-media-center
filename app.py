@@ -28,21 +28,12 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 from supabase import create_client
 import os
 
+# Load variabel dari environment
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# Inisialisasi dengan opsi minimal
-supabase = create_client(
-    SUPABASE_URL,
-    SUPABASE_KEY,
-    options={
-        'auto_refresh_token': False,
-        'persist_session': False,
-        'client_options': {
-            'timeout': 10
-        }
-    }
-)
+# Inisialisasi Supabase
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -365,3 +356,5 @@ def test():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)   
+    print("SUPABASE_URL:", SUPABASE_URL)
+    print("SUPABASE_KEY:", SUPABASE_KEY)
