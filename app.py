@@ -49,66 +49,66 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
-def init_db():
-    with app.app_context():
-        db = get_db()
-        cursor = db.cursor()
+# def init_db():
+#     with app.app_context():
+#         db = get_db()
+#         cursor = db.cursor()
         
-        # Buat tabel jika belum ada
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            role TEXT NOT NULL
-        )
-        ''')
+#         # Buat tabel jika belum ada
+#         cursor.execute('''
+#         CREATE TABLE IF NOT EXISTS users (
+#             id INTEGER PRIMARY KEY AUTOINCREMENT,
+#             username TEXT UNIQUE NOT NULL,
+#             password TEXT NOT NULL,
+#             role TEXT NOT NULL
+#         )
+#         ''')
         
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS interview_requests (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            token TEXT UNIQUE NOT NULL,
-            interviewer_name TEXT NOT NULL,
-            media_name TEXT NOT NULL,
-            topic TEXT NOT NULL,
-            method TEXT NOT NULL,
-            datetime TEXT NOT NULL,
-            meeting_link TEXT,
-            status TEXT DEFAULT 'Pending',
-            request_date TEXT NOT NULL
-        )
-        ''')
+#         cursor.execute('''
+#         CREATE TABLE IF NOT EXISTS interview_requests (
+#             id INTEGER PRIMARY KEY AUTOINCREMENT,
+#             token TEXT UNIQUE NOT NULL,
+#             interviewer_name TEXT NOT NULL,
+#             media_name TEXT NOT NULL,
+#             topic TEXT NOT NULL,
+#             method TEXT NOT NULL,
+#             datetime TEXT NOT NULL,
+#             meeting_link TEXT,
+#             status TEXT DEFAULT 'Pending',
+#             request_date TEXT NOT NULL
+#         )
+#         ''')
         
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS audio_recordings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            token TEXT NOT NULL,
-            interviewee TEXT NOT NULL,
-            interviewer TEXT NOT NULL,
-            date TEXT NOT NULL,
-            filename TEXT NOT NULL,
-            transcript TEXT,
-            FOREIGN KEY (token) REFERENCES interview_requests (token)
-        )
-        ''')
+#         cursor.execute('''
+#         CREATE TABLE IF NOT EXISTS audio_recordings (
+#             id INTEGER PRIMARY KEY AUTOINCREMENT,
+#             token TEXT NOT NULL,
+#             interviewee TEXT NOT NULL,
+#             interviewer TEXT NOT NULL,
+#             date TEXT NOT NULL,
+#             filename TEXT NOT NULL,
+#             transcript TEXT,
+#             FOREIGN KEY (token) REFERENCES interview_requests (token)
+#         )
+#         ''')
         
-        cursor.execute('''
-                       ALTER TABLE interview_requests ADD COLUMN whatsapp_link TEXT
-                       ''')
+#         cursor.execute('''
+#                        ALTER TABLE interview_requests ADD COLUMN whatsapp_link TEXT
+#                        ''')
         
-        # Insert admin user jika belum ada dengan password yang di-hash
-        try:
-            hashed_admin_pw = generate_password_hash('password123')
-            hashed_user_pw = generate_password_hash('user123')
+#         # Insert admin user jika belum ada dengan password yang di-hash
+#         try:
+#             hashed_admin_pw = generate_password_hash('password123')
+#             hashed_user_pw = generate_password_hash('user123')
             
-            cursor.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', 
-                          ('admin', hashed_admin_pw, 'admin'))
-            cursor.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', 
-                          ('user1', hashed_user_pw, 'user'))
-        except sqlite3.IntegrityError:
-            pass  # User sudah ada
+#             cursor.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', 
+#                           ('admin', hashed_admin_pw, 'admin'))
+#             cursor.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', 
+#                           ('user1', hashed_user_pw, 'user'))
+#         except sqlite3.IntegrityError:
+#             pass  # User sudah ada
             
-        db.commit()
+#         db.commit()
 
 
 # Migrasi data
@@ -291,77 +291,48 @@ def request_interview():
 @app.route('/historical-data')
 def historical_data_view():
     if 'user' not in session:
-        flash('Please login to view this page', 'danger')
+        flash('Harap login terlebih dahulu', 'danger')
         return redirect(url_for('login'))
     
-    db = get_db()
-    cursor = db.cursor()
+    # Query ke Supabase
+    response = supabase.table('interview_requests').select('*').execute()
+    requests = response.data
     
-    cursor.execute('''
-        SELECT ir.*, ar.filename as has_recording
-        FROM interview_requests ir
-        LEFT JOIN audio_recordings ar ON ir.token = ar.token
-        ORDER BY ir.request_date DESC
-    ''')
-    historical_data = cursor.fetchall()
-    
-    return render_template('historical_data.html', historical_data=historical_data)
+    return render_template('historical_data.html', historical_data=requests)
 
 # Recorder
-@app.route('/recorder', methods=['GET', 'POST'])
+@app.route('/recorder', methods=['POST'])
 def recorder():
-    if 'user' not in session:
-        flash('Please login to view this page', 'danger')
-        return redirect(url_for('login'))
+    if 'audio_file' not in request.files:
+        flash('No file uploaded', 'danger')
+        return redirect(url_for('recorder'))
     
-    db = get_db()
-    cursor = db.cursor()
+    file = request.files['audio_file']
+    if file.filename == '':
+        flash('No selected file', 'danger')
+        return redirect(url_for('recorder'))
     
-    # Cek role user
-    cursor.execute('SELECT role FROM users WHERE username = ?', (session['user'],))
-    user = cursor.fetchone()
-    
-    if not user or user['role'] != 'admin':
-        flash('Unauthorized access', 'danger')
-        return redirect(url_for('index'))
-    
-    if request.method == 'POST':
-        if 'audio_file' not in request.files:
-            flash('No audio file uploaded', 'danger')
-            return redirect(request.url)
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        file_bytes = file.read()
         
-        file = request.files['audio_file']
-        if file.filename == '':
-            flash('No selected file', 'danger')
-            return redirect(request.url)
+        # Upload ke Supabase Storage
+        bucket_name = "audios"
+        supabase.storage().from_(bucket_name).upload(filename, file_bytes)
         
-        if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-            
-            cursor.execute('''
-                INSERT INTO audio_recordings 
-                (token, interviewee, interviewer, date, filename, transcript)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (
-                request.form.get('token'),
-                request.form.get('interviewee'),
-                request.form.get('interviewer'),
-                datetime.now().strftime('%Y-%m-%d %H:%M'),
-                filename,
-                request.form.get('transcript', '')
-            ))
-            db.commit()
-            
-            flash('Recording saved successfully!', 'success')
-            return redirect(url_for('recorder'))
+        # Simpan metadata ke tabel audio_recordings
+        supabase.table('audio_recordings').insert({
+            'token': request.form.get('token'),
+            'interviewee': request.form.get('interviewee'),
+            'interviewer': request.form.get('interviewer'),
+            'date': datetime.now().strftime('%Y-%m-%d %H:%M'),
+            'filename': filename,
+            'transcript': request.form.get('transcript', '')
+        }).execute()
+        
+        flash('File berhasil diupload!', 'success')
     
-    # Ambil data rekaman dari database
-    cursor.execute('SELECT * FROM audio_recordings ORDER BY date DESC')
-    recordings = cursor.fetchall()
-    
-    return render_template('recorder.html', recordings=recordings)
+    return redirect(url_for('recorder'))
 
 # Generate PDF
 @app.route('/generate-pdf/<int:recording_id>')
@@ -421,19 +392,24 @@ def generate_pdf(recording_id):
 
 # Login
 # Contoh: Fungsi login yang diubah
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    username = request.form.get('username')
-    password = request.form.get('password')
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+        
+        # Query ke Supabase
+        response = supabase.table('users').select('*').eq('username', username).execute()
+        user = response.data[0] if response.data else None
+        
+        if user and check_password_hash(user['password'], password):
+            session['user'] = user['username']
+            flash('Login berhasil!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Username atau password salah', 'danger')
     
-    # Query ke Supabase
-    user = supabase.table("users").select("*").eq("username", username).execute()
-    if user.data and check_password_hash(user.data[0]['password'], password):
-        session['user'] = username
-        return redirect(url_for('index'))
-    else:
-        flash('Login gagal!', 'danger')
-        return redirect(url_for('login'))
+    return render_template('login.html')
 
 # Logout
 @app.route('/logout')
