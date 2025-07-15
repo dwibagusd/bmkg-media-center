@@ -357,5 +357,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
     if not all([os.getenv('SUPABASE_URL'), os.getenv('SUPABASE_KEY')]):
-    raise RuntimeError("Supabase credentials missing!")
+        raise RuntimeError("Supabase credentials missing!")
     
