@@ -6,7 +6,7 @@
       "use": "@vercel/python",
       "config": {
         "runtime": "python3.9",
-        "installCommand": "pip install --no-cache-dir -r requirements.txt"
+        "installCommand": "pip install --upgrade pip && pip install -r requirements.txt --ignore-installed"
       }
     }
   ],
