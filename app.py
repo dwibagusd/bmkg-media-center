@@ -31,13 +31,16 @@ import os
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# Solusi 1: Gunakan versi lebih baru dengan opsi eksplisit
+# Inisialisasi dengan opsi minimal
 supabase = create_client(
-    supabase_url=SUPABASE_URL,
-    supabase_key=SUPABASE_KEY,
+    SUPABASE_URL,
+    SUPABASE_KEY,
     options={
-        'auto_refresh_token': False,  # Nonaktifkan fitur problematik
-        'persist_session': False
+        'auto_refresh_token': False,
+        'persist_session': False,
+        'client_options': {
+            'timeout': 10
+        }
     }
 )
 
