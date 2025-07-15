@@ -1,5 +1,6 @@
 # Import Library
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
 from datetime import datetime, timedelta
 import os
@@ -7,7 +8,6 @@ import random
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import io
-from werkzeug.security import generate_password_hash, check_password_hash
 from supabase import create_client, Client
 import logging
 
@@ -25,15 +25,31 @@ logger = logging.getLogger(__name__)
 # Buat folder unggahan
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Konfigurasi Supabase
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    logger.error("Supabase credentials not set!")
-    raise ValueError("Supabase credentials not set")
-
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Konfigurasi Supabase dengan error handling
+try:
+    SUPABASE_URL = os.environ.get("SUPABASE_URL")
+    SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+    
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        raise RuntimeError("Supabase credentials not set in environment variables")
+    
+    # Inisialisasi client dengan konfigurasi minimal
+    supabase: Client = create_client(
+        supabase_url=SUPABASE_URL,
+        supabase_key=SUPABASE_KEY,
+        options={
+            'auto_refresh_token': True,
+            'persist_session': True
+        }
+    )
+    
+    # Test koneksi
+    data = supabase.table('interview_requests').select("*").limit(1).execute()
+    print("Supabase connected successfully")
+    
+except Exception as e:
+    print(f"Failed to initialize Supabase: {str(e)}")
+    raise
 
 def allowed_file(filename):
     return '.' in filename and \
