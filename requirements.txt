@@ -1,5 +1,4 @@
-# requirements.txt
 Flask>=2.0
 reportlab>=3.6
-supabase-py>=1.0
+supabase>=0.2.9
 waitress>=2.0
